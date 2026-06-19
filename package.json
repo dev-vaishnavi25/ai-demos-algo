@@ -1,0 +1,34 @@
+{
+  "name": "ai-trio-playground",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One project demonstrating Transformers.js, LangChain.js, and the Vercel AI SDK across voice-to-content, prompt-to-content, and summarization use cases — powered by the Gemini API.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^1.0.0",
+    "@huggingface/transformers": "^3.0.2",
+    "@langchain/core": "^0.3.18",
+    "@langchain/google-genai": "^0.1.8",
+    "ai": "^4.0.0",
+    "langchain": "^0.3.7",
+    "next": "^14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "^14.2.35",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5"
+  }
+}

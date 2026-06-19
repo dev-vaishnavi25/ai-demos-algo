@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-100;
+    background-image:
+      radial-gradient(40rem 40rem at 110% -10%, rgba(56, 189, 248, 0.08), transparent),
+      radial-gradient(36rem 36rem at -10% 0%, rgba(16, 185, 129, 0.08), transparent);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+      transition disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply btn bg-zinc-100 text-zinc-900 hover:bg-white;
+  }
+  .btn-ghost {
+    @apply btn border border-zinc-700 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800/60;
+  }
+  .field {
+    @apply w-full rounded-lg border border-zinc-700 bg-zinc-950/60 px-3 py-2 text-sm
+      text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-zinc-400;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-400;
+  }
+  .output {
+    @apply min-h-[8rem] whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-950/60
+      p-4 text-sm leading-relaxed text-zinc-200;
+  }
+}
