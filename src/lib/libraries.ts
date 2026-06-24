@@ -31,7 +31,7 @@ export const LIBRARIES: Record<
     tagline: 'Compose prompts, models, and parsers into streaming chains (LCEL).',
     text: 'text-langchain',
     border: 'border-langchain/40',
-    bg: 'bg-langchain/10',
+    bg: 'bg-langchain/10',   
     runsOn: 'server',
   },
   vercel: {
