@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Chip } from '@/components/Chip';
 import { LIBRARIES, type LibKey } from '@/lib/libraries';
+import ChatWidget from '@/components/chat-widget/ChatWidget';
 
 const DEMOS: {
   href: string;
@@ -120,6 +121,9 @@ export default function HomePage() {
           cloud demos. The Voice and Summarize pages also work key-free using only Transformers.js.
         </p>
       </section>
+
+
+       <ChatWidget />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
   AIMessage,
   SystemMessage,
 } from "@langchain/core/messages";
-
+export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     if (!GEMINI_API_KEY) {
@@ -134,7 +134,10 @@ export async function POST(req: Request) {
 
     return new Response(readableStream, {
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
+       "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+       "Connection": "keep-alive",
+         "X-Content-Type-Options": "nosniff" 
       },
     });
   } catch (error) {

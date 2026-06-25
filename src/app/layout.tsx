@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Nav } from '@/components/Nav';
+import ChatWidget from '@/components/chat-widget/ChatWidget';
 
 export const metadata: Metadata = {
   title: 'AI Trio Playground — Transformers.js · LangChain.js · Vercel AI SDK',
@@ -18,6 +19,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Transformers.js runs in your browser · LangChain.js &amp; Vercel AI SDK call Gemini on
           the server.
         </footer>
+
+  <ChatWidget />
       </body>
     </html>
   );
