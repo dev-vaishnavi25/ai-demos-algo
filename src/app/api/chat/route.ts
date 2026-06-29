@@ -7,6 +7,8 @@ import {
   AIMessage,
   SystemMessage,
 } from "@langchain/core/messages";
+import { redis } from "@/lib/redis";
+import { REDIS_KEYS } from "@/lib/redis-keys";
 export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
@@ -24,6 +26,21 @@ export async function POST(req: Request) {
         content: message,
       },
     });
+
+    // Invalidate conversation cache
+    await prisma.conversation.update({
+      where: {
+        id: Number(conversationId),
+      },
+      data: {
+        updatedAt: new Date(),
+      },
+    });
+
+    await Promise.all([
+      redis.del(REDIS_KEYS.conversation(Number(conversationId))),
+      redis.del(REDIS_KEYS.CONVERSATIONS),
+    ]);
 
     // Load conversation history
     const conversation = await prisma.conversation.findUnique({
@@ -57,6 +74,7 @@ export async function POST(req: Request) {
           title: message.substring(0, 50),
         },
       });
+      await redis.del(REDIS_KEYS.CONVERSATIONS);
     }
 
     // Build prompt from history
@@ -131,6 +149,19 @@ export async function POST(req: Request) {
             },
           });
 
+          await prisma.conversation.update({
+            where: {
+              id: Number(conversationId),
+            },
+            data: {
+              updatedAt: new Date(),
+            },
+          });
+          // Chat history changed again
+          await Promise.all([
+            redis.del(REDIS_KEYS.conversation(Number(conversationId))),
+            redis.del(REDIS_KEYS.CONVERSATIONS),
+          ]);
           controller.close();
         } catch (error) {
           controller.error(error);

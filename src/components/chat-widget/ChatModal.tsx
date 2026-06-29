@@ -13,15 +13,15 @@ interface ChatScreenProps {
 export default function ChatScreen({ onClose }: ChatScreenProps) {
   const [closing, setClosing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<
     number | null
   >(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
 
-  // 1. Naya State Typing indicator ke liye
   const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
@@ -32,57 +32,77 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [messages, isTyping]); // isTyping add kiya taaki 3 dots pe bhi scroll ho
+  }, [messages, isTyping]);
 
   async function loadConversations() {
-    const res = await fetch("/api/conversations");
-    const data = await res.json();
-    setConversations(data);
+    try {
+      const res = await fetch("/api/conversations");
+      const data = await res.json();
+      setConversations(data);
+    } catch (error) {
+      console.error("Failed to load conversations", error);
+    }
   }
 
   async function loadConversation(id: number) {
     setSelectedConversationId(id);
-    const res = await fetch(`/api/conversations/${id}`);
-    const data = await res.json();
-    setMessages(data.messages || []);
+    try {
+      const res = await fetch(`/api/conversations/${id}`);
+      const data = await res.json();
+
+      // Load real messages from DB
+      setMessages(data.messages || []);
+
+      // ✅ Model Persistence:(if old chat exist then load its model)
+      if (data.model) {
+        setSelectedModel(data.model);
+      }
+    } catch (error) {
+      console.error("Failed to load conversation details", error);
+    }
   }
 
   async function createConversation() {
-    const res = await fetch("/api/conversations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: selectedModel,
-      }),
-    });
-    const conversation = await res.json();
-    await loadConversations();
-    await loadConversation(conversation.id);
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: selectedModel, // ✅ with new chat model will be saved in DB
+        }),
+      });
+      const conversation = await res.json();
+
+      await loadConversations();
+      await loadConversation(conversation.id);
+    } catch (error) {
+      console.error("Failed to create conversation", error);
+    }
   }
 
   async function sendMessage() {
     if (!input.trim()) return;
 
     if (!selectedConversationId) {
-      alert("Create a conversation first");
+      alert("Please create or select a conversation first.");
       return;
     }
 
     const currentInput = input;
-    setInput("");
+    setInput(""); // Clear input box immediately
 
-    const userMsgId = Date.now();
-    const assistantMsgId = Date.now() + 1;
+    // Temp IDs for local optimistic UI
+    const tempUserMsgId = Date.now();
+    const tempAssistantMsgId = Date.now() + 1;
 
     setMessages((prev) => [
       ...prev,
-      { id: userMsgId, role: "user", content: currentInput },
-      { id: assistantMsgId, role: "assistant", content: "" }, // Placeholder for stream
+      { id: tempUserMsgId, role: "user", content: currentInput },
+      { id: tempAssistantMsgId, role: "assistant", content: "" },
     ]);
 
-    // 2. Jaise hi message send ho, typing true kar do
     setIsTyping(true);
 
     try {
@@ -101,13 +121,20 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
 
       const decoder = new TextDecoder();
       let assistantText = "";
-
-      // 3. Jaise hi pehla chunk aane lage, typing false kar do
       let isFirstChunk = true;
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+
+        // when stream complete
+        if (done) {
+          // ⭐ FINAL PRODUCTION DB SYNC ⭐
+          // Jaise hi stream complete hoti hai, hum DB se fresh data mangwayenge
+          // is-se Local state aur Database state 100% sync ho jayenge
+          await loadConversations(); // Sidebar refresh (Title auto-update ke liye)
+          await loadConversation(selectedConversationId); // Final DB sync for real IDs & Text
+          break;
+        }
 
         if (isFirstChunk) {
           setIsTyping(false);
@@ -117,6 +144,7 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
         const chunk = decoder.decode(value, { stream: true });
         assistantText += chunk;
 
+        // Local state update karte raho jab tak stream chal rahi hai
         setMessages((prev) => {
           const updated = [...prev];
           updated[updated.length - 1] = {
@@ -126,11 +154,9 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
           return updated;
         });
       }
-
-      loadConversations();
     } catch (error) {
       console.error("Error during streaming:", error);
-      setIsTyping(false); // Error aaye tab bhi hide kar do
+      setIsTyping(false);
     }
   }
 
@@ -168,30 +194,34 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
 
       <div className="flex h-screen">
         {/* Sidebar */}
-        <aside className="w-72 border-r border-zinc-800 bg-zinc-900">
+        <aside className="w-72 border-r border-zinc-800 bg-zinc-900 flex flex-col">
           <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-            <h2 className="font-semibold">Conversations</h2>
+            <h2 className="font-semibold text-white">Conversations</h2>
             <button
               onClick={handleClose}
-              className="text-zinc-400 hover:text-white"
+              className="text-zinc-400 hover:text-white transition-colors"
             >
               ✕
             </button>
           </div>
 
-          <div className="p-4">
-            <button onClick={createConversation} className="btn-primary w-full">
+          <div className="p-4 flex-1 overflow-y-auto">
+            <button
+              onClick={createConversation}
+              className="btn-primary w-full mb-4"
+            >
               + New Chat
             </button>
-            <div className="mt-4 space-y-1">
+
+            <div className="space-y-1">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => loadConversation(conversation.id)}
-                  className={`cursor-pointer rounded-lg p-3 hover:bg-zinc-800 ${
+                  className={`cursor-pointer rounded-lg p-3 truncate transition-colors hover:bg-zinc-800 ${
                     selectedConversationId === conversation.id
-                      ? "bg-zinc-800"
-                      : ""
+                      ? "bg-zinc-800 text-white font-medium"
+                      : "text-zinc-400"
                   }`}
                 >
                   {conversation.title || "New Chat"}
@@ -202,26 +232,33 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
         </aside>
 
         {/* Chat */}
-        <main className="flex flex-1 flex-col">
-          <header className="border-b border-zinc-800 p-4">
-            <h1 className="font-semibold">AI Assistant</h1>
+        <main className="flex flex-1 flex-col relative">
+          <header className="border-b border-zinc-800 p-4 flex items-center justify-between">
+            <h1 className="font-semibold text-white">AI Assistant</h1>
+
+            {/* Top Bar me Dropdown rakhna ek achhi UI practice hai */}
+            <div className="w-48">
+              <Models
+                selectedModel={selectedModel}
+                onModelChange={(newModel) => setSelectedModel(newModel)}
+              />
+            </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-3xl space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+            <div className="mx-auto max-w-3xl space-y-6">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={
                     msg.role === "user"
-                      ? `ml-auto max-w-[80%] rounded-xl bg-zinc-800 p-4`
-                      : `max-w-[80%] rounded-xl border border-zinc-800 bg-zinc-900 p-4 prose prose-zinc prose-invert max-w-none`
+                      ? `ml-auto max-w-[80%] rounded-2xl bg-zinc-800 px-5 py-4 text-white shadow-sm`
+                      : `max-w-[80%] rounded-2xl border border-zinc-800 bg-zinc-900/50 px-5 py-4 prose prose-zinc prose-invert max-w-none shadow-sm`
                   }
                 >
                   {msg.role === "user" ? (
                     <div className="whitespace-pre-wrap">{msg.content}</div>
                   ) : msg.content === "" && isTyping ? (
-                    // 4. CSS Bouncing Dots Animation jab AI 'thinking' kar raha ho
                     <div className="flex h-6 items-center space-x-1.5 px-2">
                       <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400 [animation-delay:-0.3s]"></div>
                       <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400 [animation-delay:-0.15s]"></div>
@@ -238,25 +275,29 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
             </div>
           </div>
 
-          <footer className="border-t border-zinc-800 p-4">
-            <div className="mx-auto flex max-w-3xl gap-2">
-              <Models
-                selectedModel={selectedModel}
-                onModelChange={(newModel) => setSelectedModel(newModel)}
-              />
+          <footer className="border-t border-zinc-800 bg-zinc-950 p-4">
+            <div className="mx-auto flex max-w-3xl gap-3">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    e.preventDefault(); // Zaroori hai warna page reload ho jayega
+                    e.preventDefault();
                     sendMessage();
                   }
                 }}
-                className="field flex-1 rounded bg-zinc-800 px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ask anything..."
+                className="field flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-white placeholder:text-zinc-500 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder="Message AI..."
               />
-              <button onClick={sendMessage} className="btn-primary">
+              <button
+                onClick={sendMessage}
+                disabled={isTyping} // Disable when AI is typing
+                className={`rounded-lg px-6 font-medium transition-all ${
+                  isTyping
+                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                    : "bg-white text-black hover:bg-zinc-200"
+                }`}
+              >
                 Send
               </button>
             </div>
