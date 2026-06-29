@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Models from "../ai-models/Models";
 
 interface ChatScreenProps {
   onClose: () => void;
@@ -13,10 +14,13 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
   const [closing, setClosing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [conversations, setConversations] = useState<any[]>([]);
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    number | null
+  >(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
-  
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
+
   // 1. Naya State Typing indicator ke liye
   const [isTyping, setIsTyping] = useState(false);
 
@@ -46,6 +50,12 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
   async function createConversation() {
     const res = await fetch("/api/conversations", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+      }),
     });
     const conversation = await res.json();
     await loadConversations();
@@ -82,6 +92,7 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
         body: JSON.stringify({
           conversationId: selectedConversationId,
           message: currentInput,
+          model: selectedModel,
         }),
       });
 
@@ -90,14 +101,14 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
 
       const decoder = new TextDecoder();
       let assistantText = "";
-      
+
       // 3. Jaise hi pehla chunk aane lage, typing false kar do
       let isFirstChunk = true;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         if (isFirstChunk) {
           setIsTyping(false);
           isFirstChunk = false;
@@ -133,7 +144,11 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
   return (
     <motion.div
       initial={{ height: 0, borderTopLeftRadius: 40, borderTopRightRadius: 40 }}
-      animate={{ height: "100vh", borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
+      animate={{
+        height: "100vh",
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+      }}
       transition={{ duration: 1.2, ease: "easeInOut" }}
       className="fixed bottom-0 left-0 right-0 z-[999] bg-zinc-950 overflow-hidden"
     >
@@ -156,18 +171,27 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
         <aside className="w-72 border-r border-zinc-800 bg-zinc-900">
           <div className="flex items-center justify-between border-b border-zinc-800 p-4">
             <h2 className="font-semibold">Conversations</h2>
-            <button onClick={handleClose} className="text-zinc-400 hover:text-white">✕</button>
+            <button
+              onClick={handleClose}
+              className="text-zinc-400 hover:text-white"
+            >
+              ✕
+            </button>
           </div>
 
           <div className="p-4">
-            <button onClick={createConversation} className="btn-primary w-full">+ New Chat</button>
+            <button onClick={createConversation} className="btn-primary w-full">
+              + New Chat
+            </button>
             <div className="mt-4 space-y-1">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => loadConversation(conversation.id)}
                   className={`cursor-pointer rounded-lg p-3 hover:bg-zinc-800 ${
-                    selectedConversationId === conversation.id ? "bg-zinc-800" : ""
+                    selectedConversationId === conversation.id
+                      ? "bg-zinc-800"
+                      : ""
                   }`}
                 >
                   {conversation.title || "New Chat"}
@@ -197,14 +221,12 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
                   {msg.role === "user" ? (
                     <div className="whitespace-pre-wrap">{msg.content}</div>
                   ) : msg.content === "" && isTyping ? (
-                    
                     // 4. CSS Bouncing Dots Animation jab AI 'thinking' kar raha ho
                     <div className="flex h-6 items-center space-x-1.5 px-2">
                       <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400 [animation-delay:-0.3s]"></div>
                       <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400 [animation-delay:-0.15s]"></div>
                       <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400"></div>
                     </div>
-
                   ) : (
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {msg.content}
@@ -218,6 +240,10 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
 
           <footer className="border-t border-zinc-800 p-4">
             <div className="mx-auto flex max-w-3xl gap-2">
+              <Models
+                selectedModel={selectedModel}
+                onModelChange={(newModel) => setSelectedModel(newModel)}
+              />
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -230,7 +256,9 @@ export default function ChatScreen({ onClose }: ChatScreenProps) {
                 className="field flex-1 rounded bg-zinc-800 px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Ask anything..."
               />
-              <button onClick={sendMessage} className="btn-primary">Send</button>
+              <button onClick={sendMessage} className="btn-primary">
+                Send
+              </button>
             </div>
           </footer>
         </main>

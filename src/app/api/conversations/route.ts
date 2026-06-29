@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function POST() {
+export async function POST(req : Request) {
+  const { model } = await req.json();
   const conversation = await prisma.conversation.create({
     data: {
+       model,
     },
   });
 

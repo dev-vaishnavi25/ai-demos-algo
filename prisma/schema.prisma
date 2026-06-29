@@ -15,6 +15,7 @@ datasource db {
 model Conversation {
   id        Int      @id @default(autoincrement())
   title     String?
+  model     String @default("gemini-2.5-flash")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

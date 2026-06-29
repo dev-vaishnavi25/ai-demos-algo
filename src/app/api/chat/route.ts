@@ -14,7 +14,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: MISSING_KEY_MESSAGE }, { status: 400 });
     }
 
-    const { conversationId, message } = await req.json();
+    const { conversationId, message, model } = await req.json();
 
     // Save user message
     await prisma.message.create({
@@ -74,8 +74,14 @@ export async function POST(req: Request) {
       ),
     ];
 
-    const model = new ChatGoogleGenerativeAI({
-      model: MODEL_ID,
+    // const model = new ChatGoogleGenerativeAI({
+    //   model: MODEL_ID,
+    //   apiKey: GEMINI_API_KEY,
+    //   temperature: 0.7,
+    // });
+
+    const modelInstance = new ChatGoogleGenerativeAI({
+      model,
       apiKey: GEMINI_API_KEY,
       temperature: 0.7,
     });
@@ -94,7 +100,7 @@ export async function POST(req: Request) {
     //     ? result.content
     //     : JSON.stringify(result.content);
 
-    const stream = await model.stream(chatHistory);
+    const stream = await modelInstance.stream(chatHistory);
 
     // let aiResponse = "";
 
@@ -134,10 +140,10 @@ export async function POST(req: Request) {
 
     return new Response(readableStream, {
       headers: {
-       "Content-Type": "text/event-stream; charset=utf-8",
+        "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
-       "Connection": "keep-alive",
-         "X-Content-Type-Options": "nosniff" 
+        Connection: "keep-alive",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
